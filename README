@@ -1,3 +1,126 @@
+
+
+
+Présentation:
+-----------------------------------------------------------------------------------------
+
+Le but de ce projet était de réaliser une bibliothèque de gestion de table
+de hachage distibuée. La table permet de stocker des hashs d'une taille
+de 72octets et d'y associer une ou plusieures adresses IPv6. En faisant
+l'analogie avec le systeme de fichiers torrents, c'est comme si la table
+stockait les  adresses IPv6 des hôtes qui possèdent le fichier
+correspondent au hash donnée.
+
+Nos servers stockent des adresses associées à des hashs, et les clients
+contactent les servers pour leur transmettre des associations
+hash/adresse, ou pour récuperer des adresses à partirs de hash.
+
+
+
+Fonctionnement:
+-----------------------------------------------------------------------------------------
+
+Un client peut contacter un server et lui envoyer un couple
+hash/adresse\_IPv6, ce server stock ces données dans sa table. Un hash
+peut être associé à plusieurs adresses. Un client peut aussi contacter un
+server pour lui demander les adresses associés à un hash donné, le server
+lui répond en lui indiquant les élément correspondant trouvé dans sa base
+de données.
+
+Les servers maintiennent leur base de donnée propre, ils vérifient
+périodiquement qu'il n'y ai pas de données obsolètes et les suppriment
+s'ils en trouvent. Un hash est considéré comme obsolète si aucun server
+n'a reçu de message d'insertion de donnée concernant ce hash depuis plus
+de 30 secondes.
+
+
+Plusieurs servers peuvent se connecter entre eux, au moment de la
+connection de deux servers ceux-ci s'échangent toutes les données qu'ils
+possèdent. Ensuite les servers s'envoient mutuellement les listes des
+servers qu'il connaissent, et les servers vont ainsi démarrer de nouvelles
+procédure de connexion avec les autres servers. Tous les servers sont
+connectés entre eux avec une topologie full-mesh. Ainsi quand un server
+reçoit une donnée d'un client, il va transmettre ces données à tous les
+autres servers. 
+
+Ainsi à tout moment, si un client envoie des données à un server qui est
+connecté à un groupe de server, ces données se retrouvent dans tous les
+servers. Et quelque soit le server contacté, le client recevra les même
+informations.
+
+Les servers connectés s'envoient des messages de manière périodique pour
+maintenir leur connection, si un server ne reçoit plus de messages d'un
+autre server il va le conséderer comme mort et les deux servers se
+déconnecteront. Un server est considéré comme mort au bout de 30 secondes
+sans réponse.
+
+Si un server reçoit une demande d'adresses d'un hash qu'il n'a pas
+dans sa base de donnée, avant de répondre négativement à la requête du
+client, le server demande aux autres servers s'ils ne disposent pas de
+tels informations, puis il répond au client en conséquence.
+
+
+
+Utilisation:
+----------------------------------------------------------------------------------------
+
+$ ./server <adresse_IPv6|nom_de_domaine> <numero_de_port> [-v]
+
+Sert à creer un server unique, en lui donnant une adresse IPv6 à utiliser
+disponible sur la machine courante et un numéro de port à utiliser,
+ce server peut stocker des hashs associés à des adresses et recevoir et
+envoyer des données à des clients.
+
+
+$ ./server <adresse|nom_de_domaine> <numero_de_port> <adresse|nom_de_domaine> <numero_de_port> [-v]
+
+Permet de creer un server comme précédement et de le connecter à un autre
+server déjà existant, en lui donnant en plus de sa propre adresse et
+numéro de son port, l'adresse (ou le nom de domaine) et
+le numéro de port du server auquel se connecter. Le nouveau server
+communiquera avec celui déjà en place et intègrera le groupe de servers
+dans lequel le server contacté est déjà intégré.
+
+
+$ ./client  <adresse_IPv6|nom_de_domaine> <port> get <hash> [-v]
+
+Permet de contacter un server en lui demandant les adresses Iv6 qui sont
+associés au hash demandé.
+
+
+$ ./client  <adresse_IPv6|nom_de_domaine> <port> put <hash> <adresse_IPv6> [-v]
+
+Permet d'envoyer une adresse associé à un hash à un server.
+
+
+Les deux programmes, client comme server peuvent prendre
+l'option -v (verbose) en argument. Avec cette option activée le
+programme affiche explicitement ses différentes actions, et plus
+particulièrement les détails de synchonisations entre server, et les
+émissions et réceptions de messages.
+
+Structures de données:
+--------------------------------------------------------------------------------------------
+
+Table de hachage:
+--------------------------------------------------------------------------------------------
+
+Dans le server la table contenant les hashs et les adresses est un AVL où
+chaque noeud correspond à un hash. Chaque noeud est lié à une liste
+chainée contenant les adresses IPv6 associés à ce hash.\\
+   
+
+L'avantage d'un AVL par rapport à un taleau est que l'insertion et la
+suppression des éléments est très simple et très rapide. Or cette
+application passe son temps à inserer des données, et à supprimer les
+données obsolètes. La recherche d'un élément dans un AVL est en log(n) ce
+qui est très convenable.
+
+
+
+Format de messages:
+--------------------------------------------------------------------------------------------
+
 Il y a trois formats de messages utilisés pour transmettre des informations à
 travers le réseau:
 
@@ -67,9 +190,4 @@ un autre server. Par exemple des messages de connexion ou de keep_alive.
 +------------------------------+-------------------------------+
 
 
-Plus de détails sur les structures de données utilisés pour le stockages des
-des hashs, des adresses et des infos sur les servers, ainsi que les algortihmes
-utilisées par les clients et les servers et leur fonctionnement sont sont
-données dans le rapport.
-
-Lucas SCHOTT et Juan Manuel TORRESS GARCIA
+Lucas SCHOTT
